@@ -1,18 +1,11 @@
 import { NextResponse } from "next/server"
 
+import { callLambda } from "@/lib/lamda"
+
 // Actions this route is allowed to send to the Lambda
 const ALLOWED_ACTIONS = ["presign", "evaluate"]
 
 export async function POST(req: Request) {
-  const lambdaUrl = process.env.WATCHLIST_LAMBDA_URL
-
-  if (!lambdaUrl) {
-    return NextResponse.json(
-      { error: "Watchlist screening service is not configured" },
-      { status: 500 }
-    )
-  }
-
   // 1. Read the request body
   let body: Record<string, unknown>
   try {
@@ -40,12 +33,9 @@ export async function POST(req: Request) {
 
   // 4. Forward everything to the Lambda (fileName, fileType, fileSize for presign; key for evaluate)
   try {
-    const lambdaResponse = await fetch(lambdaUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...body, action }),
-      cache: "no-store",
-    })
+    const lambda = await callLambda({ ...body, action })
+    if (lambda.error) return lambda.error
+    const lambdaResponse = lambda.response
 
     const text = await lambdaResponse.text()
     let result: Record<string, unknown> = {}

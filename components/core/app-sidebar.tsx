@@ -2,11 +2,12 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -15,6 +16,10 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import { LogOut } from "lucide-react"
+import { Button } from "../ui/button"
+import { signOut } from "aws-amplify/auth"
+import { Spinner } from "../ui/spinner"
 
 const data = {
   navMain: [
@@ -45,6 +50,22 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const [loading, setLoading] = React.useState(false)
+
+  const handleSignOut = async () => {
+    try {
+      setLoading(true)
+      await signOut()
+      router.replace("/sign-in")
+      router.refresh()
+    } catch (error) {
+      console.error("Error signing out:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <Sidebar {...props}>
@@ -77,6 +98,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroup>
         ))}
       </SidebarContent>
+      <SidebarFooter>
+        <Button onClick={handleSignOut}>
+          Sign Out
+          {loading && <Spinner className="ml-2 h-4 w-4" aria-hidden="true" />}
+        </Button>
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

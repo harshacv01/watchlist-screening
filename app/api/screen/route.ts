@@ -1,15 +1,8 @@
 import { NextResponse } from "next/server"
 
+import { callLambda } from "@/lib/lamda"
+
 export async function POST(req: Request) {
-  const lambdaUrl = process.env.WATCHLIST_LAMBDA_URL
-
-  if (!lambdaUrl) {
-    return NextResponse.json(
-      { error: "Watchlist screening service is not configured" },
-      { status: 500 }
-    )
-  }
-
   let body: {
     name?: unknown
     dob?: unknown
@@ -60,17 +53,14 @@ export async function POST(req: Request) {
   }
 
   try {
-    const lambdaResponse = await fetch(lambdaUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        ...(dob !== undefined ? { dob } : {}),
-        threshold,
-        action: typeof action === "string" ? action : "screen",
-      }),
-      cache: "no-store",
+    const lambda = await callLambda({
+      name,
+      ...(dob !== undefined ? { dob } : {}),
+      threshold,
+      action: typeof action === "string" ? action : "screen",
     })
+    if (lambda.error) return lambda.error
+    const lambdaResponse = lambda.response
 
     const responseText = await lambdaResponse.text()
     let result: unknown

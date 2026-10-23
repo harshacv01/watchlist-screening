@@ -89,7 +89,7 @@ const BatchScreenPage = () => {
   const [isUploaded, setIsUploaded] = useState(false)
   const [loadResult, setLoadResult] = useState<BatchScreenResult | null>(null)
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
-  const toastManager = useToastManager()
+  // const toastManager = useToastManager()
 
   function toggleRow(rowNumber: number) {
     setExpandedRows((current) => {
@@ -110,21 +110,21 @@ const BatchScreenPage = () => {
     if (!nextFile.name.toLowerCase().endsWith(".csv")) {
       setFile(null)
       setError("Please choose a CSV file.")
-      toastManager.add({
-        type: "error",
-        title: "Invalid file",
-        description: "Please choose a CSV file.",
-      })
+      // toastManager.add({
+      //   type: "error",
+      //   title: "Invalid file",
+      //   description: "Please choose a CSV file.",
+      // })
       return
     }
     if (nextFile.size > MAX_FILE_SIZE) {
       setFile(null)
       setError("File size must be 50 MB or smaller.")
-      toastManager.add({
-        type: "error",
-        title: "File is too large",
-        description: "File size must be 50 MB or smaller.",
-      })
+      // toastManager.add({
+      //   type: "error",
+      //   title: "File is too large",
+      //   description: "File size must be 50 MB or smaller.",
+      // })
       return
     }
 
@@ -138,23 +138,23 @@ const BatchScreenPage = () => {
     event.preventDefault()
     if (!file) {
       setError("Please choose a CSV file before submitting.")
-      toastManager.add({
-        type: "error",
-        title: "No file selected",
-        description: "Please choose a CSV file before submitting.",
-      })
+      // toastManager.add({
+      //   type: "error",
+      //   title: "No file selected",
+      //   description: "Please choose a CSV file before submitting.",
+      // })
       return
     }
 
     setError("")
     setIsUploading(true)
-    toastManager.add({
-      id: BATCH_TOAST_ID,
-      type: "loading",
-      title: "Uploading batch file",
-      description: "Preparing your CSV for screening...",
-      timeout: 0,
-    })
+    // toastManager.add({
+    //   id: BATCH_TOAST_ID,
+    //   type: "loading",
+    //   title: "Uploading batch file",
+    //   description: "Preparing your CSV for screening...",
+    //   timeout: 0,
+    // })
 
     try {
       const response = await fetch("/api/watchlist", {
@@ -200,27 +200,27 @@ const BatchScreenPage = () => {
       setIsUploaded(true)
       setIsUploading(false)
       setIsProcessing(true)
-      toastManager.update(BATCH_TOAST_ID, {
-        type: "loading",
-        title: "Screening batch file",
-        description: "Checking each row against the watchlist...",
-        timeout: 0,
-      })
+      // toastManager.update(BATCH_TOAST_ID, {
+      //   type: "loading",
+      //   title: "Screening batch file",
+      //   description: "Checking each row against the watchlist...",
+      //   timeout: 0,
+      // })
       const processed = await runBatch(key)
       if (processed) {
-        toastManager.update(BATCH_TOAST_ID, {
-          type: "success",
-          title: "Batch screening complete",
-          description: "Your screening results are ready below.",
-          timeout: 5000,
-        })
+        // toastManager.update(BATCH_TOAST_ID, {
+        //   type: "success",
+        //   title: "Batch screening complete",
+        //   description: "Your screening results are ready below.",
+        //   timeout: 5000,
+        // })
       } else {
-        toastManager.update(BATCH_TOAST_ID, {
-          type: "error",
-          title: "Batch screening failed",
-          description: "The file was uploaded, but screening could not be completed.",
-          timeout: 5000,
-        })
+        // toastManager.update(BATCH_TOAST_ID, {
+        //   type: "error",
+        //   title: "Batch screening failed",
+        //   description: "The file was uploaded, but screening could not be completed.",
+        //   timeout: 5000,
+        // })
       }
     } catch (uploadError) {
       const message =
@@ -228,12 +228,12 @@ const BatchScreenPage = () => {
           ? uploadError.message
           : "The file could not be uploaded."
       setError(message)
-      toastManager.update(BATCH_TOAST_ID, {
-        type: "error",
-        title: "Upload failed",
-        description: message,
-        timeout: 5000,
-      })
+      // toastManager.update(BATCH_TOAST_ID, {
+      //   type: "error",
+      //   title: "Upload failed",
+      //   description: message,
+      //   timeout: 5000,
+      // })
     } finally {
       setIsUploading(false)
       setIsProcessing(false)
