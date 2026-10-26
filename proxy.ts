@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server"
-import { fetchAuthSession } from "aws-amplify/auth/server"
 
-import { runWithAmplifyServerContext } from "@/lib/amplify-server"
+import { canOpen, homeFor } from "@/lib/auth/roles"
+import { getSessionUser } from "@/lib/auth/session"
 
-// Pages only signed-out users should see; signed-in users are sent to the dashboard
+// Pages only signed-out users should see; signed-in users are sent to their home page
 const AUTH_PAGES = [
   "/sign-in",
   "/sign-up",
@@ -15,40 +15,32 @@ const AUTH_PAGES = [
 export async function proxy(request: NextRequest) {
   // Passing the response lets Amplify write refreshed tokens back as cookies
   const response = NextResponse.next()
-
-  const isSignedIn = await runWithAmplifyServerContext({
-    nextServerContext: { request, response },
-    operation: async (ctx) => {
-      try {
-        const session = await fetchAuthSession(ctx)
-        return session.tokens?.accessToken !== undefined
-      } catch {
-        return false
-      }
-    },
-  })
+  const user = await getSessionUser({ request, response })
 
   const { pathname } = request.nextUrl
+  const redirectTo = (path: string) =>
+    NextResponse.redirect(new URL(path, request.url))
 
   if (pathname.startsWith("/api/")) {
-    return isSignedIn
+    return user
       ? response
       : NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   if (pathname === "/") {
-    const target = isSignedIn ? "/dashboard" : "/sign-in"
-    return NextResponse.redirect(new URL(target, request.url))
+    return redirectTo(user ? homeFor(user.role) : "/sign-in")
   }
 
   if (pathname.startsWith("/dashboard")) {
-    return isSignedIn
+    if (!user) return redirectTo("/sign-in")
+    // Pages not listed in PAGE_ROLES are closed to everyone
+    return canOpen(user.role, pathname)
       ? response
-      : NextResponse.redirect(new URL("/sign-in", request.url))
+      : redirectTo(homeFor(user.role))
   }
 
-  if (AUTH_PAGES.includes(pathname) && isSignedIn) {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
+  if (AUTH_PAGES.includes(pathname) && user) {
+    return redirectTo(homeFor(user.role))
   }
 
   return response

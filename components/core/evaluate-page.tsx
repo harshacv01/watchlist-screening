@@ -90,6 +90,7 @@ const EvaluationPage = () => {
           fileType: selectedFile?.type,
           fileSize: selectedFile?.size,
           action: "presign",
+          purpose: "evaluate",
         }),
       })
       const result = (await response.json()) as {

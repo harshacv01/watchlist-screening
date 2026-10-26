@@ -124,6 +124,7 @@ const WatchlistUploadPage = () => {
           fileType: file.type,
           fileSize: file.size,
           action: "presign",
+          purpose: "sanctions",
         }),
       })
       const result = (await response.json()) as {

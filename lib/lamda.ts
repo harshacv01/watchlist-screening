@@ -36,8 +36,6 @@ export async function callLambda(
 
   const token = await getAccessToken()
 
-  console.log("Access token:", token)
-
   if (!token) {
     return {
       error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
