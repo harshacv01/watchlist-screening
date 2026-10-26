@@ -12,7 +12,6 @@ import {
 import {
   AlertCircle,
   ArrowUp,
-  Check,
   FileSpreadsheet,
   Loader2,
   UploadCloud,
@@ -26,7 +25,15 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { toast } from "@/components/ui/toast"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { toast } from "sonner"
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 
@@ -38,6 +45,7 @@ type WatchlistLoadResult = {
   rows?: Array<{
     line: number
     id: string
+    regime?: string
     reason: string
   }>
   warnings?: Array<{
@@ -50,6 +58,7 @@ type WatchlistLoadResult = {
     type: string
     names: string[]
     dobs?: string[]
+    regime?: string
   }>
 }
 
@@ -69,10 +78,9 @@ const WatchlistUploadPage = () => {
 
   function showError(message: string) {
     setError(message)
-    toast.add({
+    toast.error("Watchlist upload error", {
+      className: "border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/60 dark:text-red-100",
       description: message,
-      title: "Watchlist upload error",
-      type: "error",
     })
   }
 
@@ -116,6 +124,7 @@ const WatchlistUploadPage = () => {
           fileType: file.type,
           fileSize: file.size,
           action: "presign",
+          purpose: "sanctions",
         }),
       })
       const result = (await response.json()) as {
@@ -145,8 +154,14 @@ const WatchlistUploadPage = () => {
 
       const key = result.key
 
-      setIsUploaded(true)
-      await loadWatchlist(key)
+      const loaded = await loadWatchlist(key)
+      if (loaded) {
+        setIsUploaded(true)
+        toast.success("Upload successful", {
+          className: "border-green-300 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950/60 dark:text-green-100",
+          description: `${file.name} was uploaded successfully.`,
+        })
+      }
     } catch (uploadError) {
       showError(
         uploadError instanceof Error
@@ -184,20 +199,37 @@ const WatchlistUploadPage = () => {
       }
 
       setLoadResult(result as WatchlistLoadResult)
+      return true
     } catch (error) {
       console.error("Error loading watchlist:", error)
       showError(
-        error instanceof Error
-          ? error.message
-          : "Failed to load the watchlist.",
+        error instanceof Error ? error.message : "Failed to load the watchlist."
       )
+      return false
     }
   }
+
+  const regimeById = new Map(
+    loadResult?.data?.map((entry) => [entry.id, entry.regime]) ?? []
+  )
 
   return (
     <div className="w-full">
       <div className="flex flex-col gap-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Card className="border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/30">
+            <CardHeader>
+              <CardTitle>Total rows</CardTitle>
+              <CardDescription>Rows in the uploaded CSV</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">
+                {loadResult
+                  ? (loadResult.loaded + loadResult.notLoaded).toLocaleString()
+                  : "-"}
+              </p>
+            </CardContent>
+          </Card>
           <Card className="border-green-200 bg-green-50 dark:border-green-900/50 dark:bg-green-950/30">
             <CardHeader>
               <CardTitle>Loaded</CardTitle>
@@ -227,9 +259,7 @@ const WatchlistUploadPage = () => {
           <Card className="border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30">
             <CardHeader>
               <CardTitle>Not loaded</CardTitle>
-              <CardDescription>
-                Rows that could not be loaded
-              </CardDescription>
+              <CardDescription>Rows that could not be loaded</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold tabular-nums">
@@ -265,135 +295,156 @@ const WatchlistUploadPage = () => {
               </p>
             </CardContent>
           </Card>
-          <Card className="border-sky-200 bg-sky-50 dark:border-sky-900/50 dark:bg-sky-950/30">
-            <CardHeader>
-              <CardTitle>Data entries</CardTitle>
-              <CardDescription>
-                Entries returned in the data array
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold">
-                {loadResult
-                  ? (loadResult.data?.length ?? 0).toLocaleString()
-                  : "-"}
-              </p>
-            </CardContent>
-          </Card>
         </div>
         {loadResult &&
           (loadResult.notLoaded > 0 ||
             (loadResult.warnings?.length ?? 0) > 0) && (
-              <Card className="border-destructive/30 bg-destructive/5">
-                <CardHeader>
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                      <AlertCircle aria-hidden="true" className="size-5" />
-                    </div>
-                    <div>
-                      <CardTitle>Load details</CardTitle>
-                      <CardDescription className="mt-1">
-                        Review warnings and rows that could not be loaded.
-                      </CardDescription>
+            <Card className="border-border">
+              <CardHeader>
+                <div className="flex items-start gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                    <AlertCircle aria-hidden="true" className="size-5" />
+                  </div>
+                  <div>
+                    <CardTitle>Load details</CardTitle>
+                    <CardDescription className="mt-1">
+                      Review warnings and rows that could not be loaded.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {loadResult.warnings && loadResult.warnings.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium">Warnings</h3>
+                    <div className="mt-2 max-h-60 overflow-auto rounded-lg border border-amber-200 dark:border-amber-900/50">
+                      <div className="min-w-[36rem] divide-y divide-amber-200 text-sm dark:divide-amber-900/50">
+                        {loadResult.warnings.map((warning) => (
+                          <div
+                            className="grid grid-cols-[5rem_9rem_minmax(0,1fr)] gap-3 bg-amber-50 px-3 py-3 dark:bg-amber-950/20"
+                            key={`${warning.line}-${warning.id}-${warning.reason}`}
+                          >
+                            <span className="font-medium tabular-nums">
+                              Line {warning.line}
+                            </span>
+                            <span>{warning.id}</span>
+                            <span className="text-muted-foreground">
+                              {warning.reason}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-5">
-                  {loadResult.warnings &&
-                    loadResult.warnings.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-medium">Warnings</h3>
-                        <div className="mt-2 max-h-60 overflow-auto rounded-lg border border-amber-200 dark:border-amber-900/50">
-                          <div className="min-w-[36rem] divide-y divide-amber-200 text-sm dark:divide-amber-900/50">
-                            {loadResult.warnings.map((warning) => (
-                              <div
-                                className="grid grid-cols-[5rem_9rem_minmax(0,1fr)] gap-3 bg-amber-50 px-3 py-3 dark:bg-amber-950/20"
-                                key={`${warning.line}-${warning.id}-${warning.reason}`}
-                              >
-                                <span className="font-medium tabular-nums">
-                                  Line {warning.line}
-                                </span>
-                                <span>{warning.id}</span>
-                                <span className="text-muted-foreground">
-                                  {warning.reason}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                )}
 
-                  {loadResult.rows && loadResult.rows.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-medium">Rows not loaded</h3>
-                      <div className="mt-2 max-h-96 overflow-auto rounded-lg border border-destructive/20">
-                        <div className="min-w-[42rem] divide-y divide-border text-sm">
+                {loadResult.rows && loadResult.rows.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium">Rows not loaded</h3>
+                    <div className="mt-2 max-h-96 overflow-auto rounded-lg border border-border">
+                      <Table className="min-w-[50rem]">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Line</TableHead>
+                            <TableHead>ID</TableHead>
+                            <TableHead>Regime</TableHead>
+                            <TableHead>Reason</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
                           {loadResult.rows.map((row) => (
-                            <div
-                              className="grid grid-cols-[5rem_14rem_minmax(0,1fr)] gap-3 px-3 py-3"
+                            <TableRow
                               key={`${row.line}-${row.id}-${row.reason}`}
                             >
-                              <span className="font-medium tabular-nums">
+                              <TableCell className="font-medium tabular-nums">
                                 Line {row.line}
-                              </span>
-                              <span className="text-destructive">
-                                {row.id}
-                              </span>
-                              <span className="text-muted-foreground">
+                              </TableCell>
+                              <TableCell>{row.id}</TableCell>
+                              <TableCell>
+                                {row.regime ?? regimeById.get(row.id) ?? "-"}
+                              </TableCell>
+                              <TableCell className="whitespace-normal text-muted-foreground">
                                 {row.reason}
-                              </span>
-                            </div>
+                              </TableCell>
+                            </TableRow>
                           ))}
-                        </div>
-                      </div>
+                        </TableBody>
+                      </Table>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         <Card>
-          <CardHeader className="gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-muted text-primary">
-              <FileSpreadsheet aria-hidden="true" className="size-5" />
-            </div>
-            <div>
-              <CardTitle>Upload the list</CardTitle>
-              <CardDescription className="mt-1.5">
-                Download the CSV from GOV.UK, then upload it here. It goes
-                straight to secure storage.
-              </CardDescription>
-            </div>
-          </CardHeader>
           <form onSubmit={handleSubmit}>
+            <CardHeader className="gap-3">
+              <div className="flex items-center justify-between">
+                <FileSpreadsheet aria-hidden="true" className="size-5" />
+                <Button
+                  disabled={!file || isUploading || isUploaded}
+                  type="submit"
+                >
+                  {isUploading ? "Uploading" : "Upload"}
+                  {isUploading ? (
+                    <Loader2
+                      aria-hidden="true"
+                      className="size-4 animate-spin"
+                    />
+                  ) : (
+                    <ArrowUp aria-hidden="true" className="size-4" />
+                  )}
+                </Button>
+              </div>
+              <div>
+                <CardTitle>Upload the list</CardTitle>
+                <CardDescription className="mt-1.5">
+                  Download the CSV from GOV.UK, then upload it here. It goes
+                  straight to secure storage.
+                </CardDescription>
+              </div>
+            </CardHeader>
             <CardContent>
               <Field data-invalid={!!error}>
                 <FieldLabel htmlFor="watchlist-file">CSV file</FieldLabel>
                 <div
                   aria-describedby={error ? "file-error" : undefined}
                   aria-label="Upload CSV file"
-                  className={`group relative flex min-h-52 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-6 py-8 text-center transition-colors ${
-                    isDragging
-                      ? "border-primary bg-accent"
-                      : "border-border bg-muted/30 hover:border-primary hover:bg-muted/60"
+                  aria-disabled={isUploading}
+                  className={`group relative flex min-h-52 flex-col items-center justify-center rounded-xl border border-dashed px-6 py-8 text-center transition-colors ${
+                    isUploading
+                      ? "cursor-not-allowed border-border bg-muted/30 opacity-60"
+                      : isDragging
+                        ? "cursor-pointer border-primary bg-accent"
+                        : "cursor-pointer border-border bg-muted/30 hover:border-primary hover:bg-muted/60"
                   }`}
-                  onClick={() => inputRef.current?.click()}
+                  onClick={() => {
+                    if (!isUploading) inputRef.current?.click()
+                  }}
                   onDragEnter={(event) => {
                     event.preventDefault()
+                    if (isUploading) return
                     setIsDragging(true)
                   }}
-                  onDragOver={(event) => event.preventDefault()}
+                  onDragOver={(event) => {
+                    event.preventDefault()
+                    if (isUploading) return
+                  }}
                   onDragLeave={(event) => {
                     if (event.currentTarget === event.target)
                       setIsDragging(false)
                   }}
-                  onDrop={handleDrop}
+                  onDrop={(event) => {
+                    if (isUploading) return
+                    handleDrop(event)
+                  }}
                 >
                   <Input
                     ref={inputRef}
                     accept=".csv,text/csv"
                     aria-invalid={!!error}
                     className="sr-only"
+                    disabled={isUploading}
                     id="watchlist-file"
                     name="file"
                     onChange={(event) => selectFile(event.target.files?.[0])}
@@ -442,25 +493,6 @@ const WatchlistUploadPage = () => {
                 </div>
               )}
             </CardContent>
-            <CardFooter className="mt-2 justify-center">
-              <Button
-                disabled={!file || isUploading || isUploaded}
-                type="submit"
-              >
-                {isUploading
-                  ? "Uploading"
-                  : isUploaded
-                    ? "Uploaded"
-                    : "Upload sanctions list"}
-                {isUploading ? (
-                  <Loader2 aria-hidden="true" className="size-4 animate-spin" />
-                ) : isUploaded ? (
-                  <Check aria-hidden="true" className="size-4" />
-                ) : (
-                  <ArrowUp aria-hidden="true" className="size-4" />
-                )}
-              </Button>
-            </CardFooter>
           </form>
         </Card>
       </div>

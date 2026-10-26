@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { callLambda } from "@/lib/lamda";
+
 const MAX_BYTES = 50 * 1024 * 1024;
 
 type LambdaResponse = {
@@ -10,15 +12,6 @@ type LambdaResponse = {
 };
 
 export async function POST(req: Request) {
-  const lambdaUrl = process.env.WATCHLIST_LAMBDA_URL;
-
-  if (!lambdaUrl) {
-    return NextResponse.json(
-      { error: "Watchlist upload service is not configured" },
-      { status: 500 },
-    );
-  }
-
   let body: {
     fileName?: unknown;
     fileType?: unknown;
@@ -55,18 +48,15 @@ export async function POST(req: Request) {
   }
 
   try {
-    const lambdaResponse = await fetch(lambdaUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        fileName,
-        fileType: typeof fileType === "string" ? fileType : "text/csv",
-        fileSize,
-        action: typeof action === "string" ? action : "presign",
-        purpose: typeof purpose === "string" ? purpose : "",
-      }),
-      cache: "no-store",
+    const lambda = await callLambda({
+      fileName,
+      fileType: typeof fileType === "string" ? fileType : "text/csv",
+      fileSize,
+      action: typeof action === "string" ? action : "presign",
+      purpose: typeof purpose === "string" ? purpose : "",
     });
+    if (lambda.error) return lambda.error;
+    const lambdaResponse = lambda.response;
 
     const result = (await lambdaResponse.json()) as LambdaResponse;
 

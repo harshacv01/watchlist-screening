@@ -47,7 +47,7 @@ pnpm install
 Create a local environment file at `.env.local`:
 
 ```env
-WATCHLIST_LAMBDA_URL=https://your-api-endpoint.example.com
+LAMBDA_URL=https://your-api-endpoint.example.com
 ```
 
 Start the development server:
