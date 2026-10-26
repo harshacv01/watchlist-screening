@@ -146,7 +146,7 @@ export function ScreenNamePage() {
           action: "screen",
         }),
       })
-      const result = unwrapScreeningResponse(await response.json())
+      const result: any = unwrapScreeningResponse(await response.json())
       if (!response.ok) {
         throw new Error(
           typeof result?.error === "string"
